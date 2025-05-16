@@ -4,6 +4,8 @@ import { useState, useRef } from "react";
 import { z } from "zod";
 import type { FileError } from "./types";
 import { FILE_ERRORS } from "./constants";
+import { Spinner } from "./Spinner";
+import { siteConfig } from "@/config/site";
 import styles from "./FileUploader.module.css";
 
 // Convert size in MB to bytes
@@ -19,9 +21,10 @@ export interface FileUploaderProps {
   // - customValidation?: (file: File) => boolean
 }
 
-export function FileUploader({ onFileSelect, maxFileSize = 5 }: FileUploaderProps) {
+export function FileUploader({ onFileSelect, maxFileSize = siteConfig.upload.maxFileSizeMB }: FileUploaderProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<FileError | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fileSchema = z.custom<File>(
@@ -35,9 +38,13 @@ export function FileUploader({ onFileSelect, maxFileSize = 5 }: FileUploaderProp
   .refine(
     file => file.name.endsWith('.gxr'),
     FILE_ERRORS.INVALID_TYPE
+  )
+  .refine(
+    file => file.name.length <= siteConfig.upload.maxFileNameLength,
+    FILE_ERRORS.FILENAME_TOO_LONG
   );
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     setError(null);
 
@@ -46,20 +53,26 @@ export function FileUploader({ onFileSelect, maxFileSize = 5 }: FileUploaderProp
     }
 
     try {
+      setIsLoading(true);
       fileSchema.parse(file);
       setSelectedFile(file);
-      onFileSelect?.(file);
+      if (onFileSelect) {
+        await onFileSelect(file);
+      }
     } catch (err) {
       if (err instanceof z.ZodError) {
         setError({ message: err.errors[0].message, code: "invalid_type" });
       } else {
         setError({ message: FILE_ERRORS.UNKNOWN_ERROR, code: "unknown" });
       }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleUnselect = () => {
     setSelectedFile(null);
+    setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -69,9 +82,12 @@ export function FileUploader({ onFileSelect, maxFileSize = 5 }: FileUploaderProp
     <div className={styles.container}>
       <div className={styles.uploadArea}>
         <label className={styles.label} data-testid="file-input-label">
-          <span className={styles.labelText}>
-            {selectedFile ? 'Cambiar archivo' : 'Seleccionar archivo GXR'}
-          </span>
+          <div className={styles.labelContent}>
+            <span className={styles.labelText}>
+              {selectedFile ? 'Cambiar archivo' : 'Seleccionar archivo GXR'}
+            </span>
+            {isLoading && <Spinner />}
+          </div>
           <input
             type="file"
             onChange={handleFileChange}
@@ -79,17 +95,25 @@ export function FileUploader({ onFileSelect, maxFileSize = 5 }: FileUploaderProp
             ref={fileInputRef}
             data-testid="file-input"
             className={styles.input}
+            disabled={isLoading}
           />
         </label>
       </div>
 
       {selectedFile && (
         <div className={styles.fileInfo}>
-          <span className={styles.fileName}>{selectedFile.name}</span>
+          <span 
+            className={styles.fileName} 
+            data-tooltip={selectedFile.name}
+            data-testid="file-name"
+          >
+            {selectedFile.name}
+          </span>
           <button 
             onClick={handleUnselect} 
             className={styles.removeButton}
             data-testid="remove-file-button"
+            disabled={isLoading}
           >
             Eliminar
           </button>
@@ -97,7 +121,7 @@ export function FileUploader({ onFileSelect, maxFileSize = 5 }: FileUploaderProp
       )}
 
       {error && (
-        <div role="alert" className={styles.error}>
+        <div data-testid="error-message" className={styles.error}>
           {error.message}
         </div>
       )}

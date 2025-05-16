@@ -31,17 +31,27 @@
   background-color: #0070f3;
   color: white;
   border-radius: 4px;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
 }
 
-.label:hover {
-  background-color: #0051b3;
+.labelContent {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
 }
 
 .labelText {
   font-size: 0.875rem;
   color: white;
   font-weight: 500;
+  opacity: 1;
+  transition: opacity 0.15s ease;
+}
+
+.labelContent:has(+ input:disabled) .labelText {
+  opacity: 0;
 }
 
 .input {
@@ -70,6 +80,25 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  position: relative;
+  cursor: help;
+}
+
+.fileName[data-tooltip]:hover::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem;
+  background: #1e293b;
+  color: white;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  z-index: 10;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
 }
 
 .removeButton {
@@ -84,7 +113,13 @@
   transition: background 0.2s ease;
 }
 
-.removeButton:hover {
+.removeButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background: #f87171;
+}
+
+.removeButton:not(:disabled):hover {
   background: #dc2626;
 }
 
